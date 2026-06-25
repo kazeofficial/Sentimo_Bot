@@ -1,11 +1,9 @@
+import requests
 import asyncio
-import random
-import logging
 import os
-from threading import Thread
+from flask import Flask, request
 from flask import Flask
-from telegram import Update
-from telegram.ext import Application, MessageHandler, filters, ContextTypes
+from threading import Thread
 
 # ===== WEBKEEP ALIVE =====
 app_web = Flask(__name__)
@@ -13,66 +11,46 @@ OWNER_ID = int(os.getenv("OWNER_ID", "0"))
 
 @app_web.route("/")
 def home():
-    return "Sentimo_Bot is online and active!"
+    return "Bot is online!"
 
 def keep_alive():
     port = int(os.environ.get("PORT", 10000))
     Thread(target=lambda: app_web.run(host="0.0.0.0", port=port)).start()
-  
-# Logging Setup
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO
-)
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-ALL_EMOJIS = ["🔥", "🔥", "🔥", "🔥", "🔥", "🔥", "🔥", "🔥", "🥰", "🔥", "🔥", "🔥"]
 
-async def auto_react(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.channel_post:
-        message_id = update.channel_post.message_id
-        chat_id = update.channel_post.chat_id
-        post_text = update.channel_post.text.lower() if update.channel_post.text else ""
+app = Flask(__name__)
 
-        delay = random.randint(2, 4)
-        await asyncio.sleep(delay)
+@app.route(f"/{BOT_TOKEN}", methods=["POST"])
+def webhook():
+    data = request.get_json()
 
-        chosen_reactions = []
-        if any(word in post_text for word in ["gcash", "pera", "kita", "sale", "promo", "discount"]):
-            chosen_reactions = ["🔥", "🔥", "🔥"]
-        elif any(word in post_text for word in ["congrats", "salamat", "thank", "panalo", "lodi"]):
-            chosen_reactions = ["🔥", "🔥", "🔥", "❤️"]
-        elif any(word in post_text for word in ["link", "website", "update", "bago", "news"]):
-            chosen_reactions = ["🔥", "🔥", "🔥"]
-        elif any(word in post_text for word in ["sad", "iyak", "sayang", "lugi", "bawi"]):
-            chosen_reactions = ["🔥", "🔥", "🔥"]
-        else:
-            num_of_reactions = random.randint(3, 5)
-            chosen_reactions = random.sample(ALL_EMOJIS, num_of_reactions)
-        
-        try:
-            reaction_list = [{"type": "emoji", "emoji": emo} for emo in chosen_reactions]
-            await context.bot.set_message_reaction(
-                chat_id=chat_id,
-                message_id=message_id,
-                reaction=reaction_list
-            )
-            print(f"Sentimo_Bot reacted {chosen_reactions}")
-        except Exception as e:
-            print(f"Reaction Error: {e}")
+    if "channel_post" in data:
+        post = data["channel_post"]
 
-def main():
-    if not BOT_TOKEN:
-        print("ERROR: Walang BOT_TOKEN sa Environment Variables!")
-        return
+        chat_id = post["chat"]["id"]
+        message_id = post["message_id"]
 
+        requests.post(
+            f"https://api.telegram.org/bot{BOT_TOKEN}/setMessageReaction",
+            json={
+                "chat_id": chat_id,
+                "message_id": message_id,
+                "reaction": [
+                    {
+                        "type": "emoji",
+                        "emoji": "❤️"
+                    }
+                ]
+            }
+        )
+
+    return "ok"
+
+@app.route("/")
+def home():
+    return "Reaction Bot Running!"
+
+if __name__ == "__main__":
     keep_alive()
-
-    # Mas maaasahang filter para sa lahat ng text posts sa kahit anong channel kung saan admin ang bot
-    application = Application.builder().token(BOT_TOKEN).build()
-    application.add_handler(MessageHandler(filters.ChatType.CHANNEL & filters.TEXT, auto_react))
-    
-    print("Sentimo_Bot is starting polling via Stable Environment...")
-    application.run_polling()
-
-if __name__ == '__main__':
-    main()
+    app.run(host="0.0.0.0", port=10000)
