@@ -13,7 +13,7 @@ OWNER_ID = int(os.getenv("OWNER_ID", "0"))
 
 @app_web.route("/")
 def home():
-    return "Sentimo_Bot is online and running stable!"
+    return "Sentimo_Bot is online and active!"
 
 def keep_alive():
     port = int(os.environ.get("PORT", 10000))
@@ -65,17 +65,14 @@ def main():
         print("ERROR: Walang BOT_TOKEN sa Environment Variables!")
         return
 
-    # 1. Patakbuhin ang Flask Keep-Alive Server
     keep_alive()
 
-    # 2. Gamitin ang Builder pero i-off ang stop signals para iwas crash sa Python 3.14
+    # Standard setup para sa stable Python runtimes
     application = Application.builder().token(BOT_TOKEN).build()
     application.add_handler(MessageHandler(filters.UpdateType.CHANNEL_POSTS, auto_react))
     
-    print("Sentimo_Bot is starting polling via Render Safe Mode...")
-    
-    # Ang stop_signals=None ang susi para hindi mag-crash ang loop sa background thread ng Render
-    application.run_polling(stop_signals=None)
+    print("Sentimo_Bot is starting polling via Stable Environment...")
+    application.run_polling()
 
 if __name__ == '__main__':
     main()
