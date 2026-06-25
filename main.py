@@ -4,7 +4,7 @@ import logging
 import os
 from threading import Thread
 from flask import Flask
-from telegram import Update, Bot
+from telegram import Update
 from telegram.ext import Application, MessageHandler, filters, ContextTypes
 
 # ===== WEBKEEP ALIVE =====
@@ -60,34 +60,22 @@ async def auto_react(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             print(f"Reaction Error: {e}")
 
-async def start_bot():
+def main():
     if not BOT_TOKEN:
         print("ERROR: Walang BOT_TOKEN sa Environment Variables!")
         return
 
-    # Tamang paraan ng manu-manong pag-setup sa v20+ nang hindi gumagamit ng builder()
-    bot = Bot(token=BOT_TOKEN)
-    application = Application(bot=bot)
-    
+    # 1. Patakbuhin ang Flask Keep-Alive Server
+    keep_alive()
+
+    # 2. Gamitin ang Builder pero i-off ang stop signals para iwas crash sa Python 3.14
+    application = Application.builder().token(BOT_TOKEN).build()
     application.add_handler(MessageHandler(filters.UpdateType.CHANNEL_POSTS, auto_react))
     
-    # Manu-manong pagsisimula ng asynchronous loop ng application
-    await application.initialize()
-    await application.start()
-    await application.updater.start_polling(allowed_updates=Update.ALL_TYPES)
+    print("Sentimo_Bot is starting polling via Render Safe Mode...")
     
-    print("Sentimo_Bot is ONLINE via Render (Bypass Mode)...")
-    while True:
-        await asyncio.sleep(3600)
-
-def main():
-    # Patakbuhin ang Flask web server
-    keep_alive()
-    
-    # Patakbuhin ang bot gamit ang isang malinis, bagong loop
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(start_bot())
+    # Ang stop_signals=None ang susi para hindi mag-crash ang loop sa background thread ng Render
+    application.run_polling(stop_signals=None)
 
 if __name__ == '__main__':
     main()
