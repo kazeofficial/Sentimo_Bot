@@ -71,12 +71,18 @@ def main():
         print("ERROR: Walang BOT_TOKEN na nahanap sa Environment Variables!")
         return
 
+    # Gumawa ng malinis at isolated na asyncio event loop para sa Python 3.14+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    
     application = Application.builder().token(BOT_TOKEN).build()
     application.add_handler(MessageHandler(filters.UpdateType.CHANNEL_POSTS, auto_react))
     
     print("Sentimo_Bot is ONLINE via Render...")
-    application.run_polling()
+    
+    # Patakbuhin ang polling nang hindi sinasara nang biglaan ang loop
+    application.run_polling(close_loop=False)
 
 if __name__ == '__main__':
-    keep_alive()
-    main()
+    keep_alive()  # Patakbuhin ang Flask web server mo sa background thread
+    main()        # Patakbuhin ang Telegram Bot loop
