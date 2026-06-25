@@ -67,9 +67,9 @@ def main():
 
     keep_alive()
 
-    # Standard setup para sa stable Python runtimes
+    # Mas maaasahang filter para sa lahat ng text posts sa kahit anong channel kung saan admin ang bot
     application = Application.builder().token(BOT_TOKEN).build()
-    application.add_handler(MessageHandler(filters.UpdateType.CHANNEL_POSTS, auto_react))
+    application.add_handler(MessageHandler(filters.ChatType.CHANNEL & filters.TEXT, auto_react))
     
     print("Sentimo_Bot is starting polling via Stable Environment...")
     application.run_polling()
