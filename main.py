@@ -25,7 +25,7 @@ logging.basicConfig(
 )
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-ALL_EMOJIS = ["👍", "🔥", "❤️", "🎉", "🤩", "🚀", "👏", "🙌", "🥰", "😎", "⚡", "💯"]
+ALL_EMOJIS = ["🔥", "🔥", "🔥", "🔥", "🔥", "🔥", "🔥", "🔥", "🥰", "🔥", "🔥", "🔥"]
 
 async def auto_react(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.channel_post:
@@ -38,13 +38,13 @@ async def auto_react(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         chosen_reactions = []
         if any(word in post_text for word in ["gcash", "pera", "kita", "sale", "promo", "discount"]):
-            chosen_reactions = ["🤑", "💰", "🔥"]
+            chosen_reactions = ["🔥", "🔥", "🔥"]
         elif any(word in post_text for word in ["congrats", "salamat", "thank", "panalo", "lodi"]):
-            chosen_reactions = ["🎉", "🙌", "👏", "❤️"]
+            chosen_reactions = ["🔥", "🔥", "🔥", "❤️"]
         elif any(word in post_text for word in ["link", "website", "update", "bago", "news"]):
-            chosen_reactions = ["🚀", "⚡", "🧐"]
+            chosen_reactions = ["🔥", "🔥", "🔥"]
         elif any(word in post_text for word in ["sad", "iyak", "sayang", "lugi", "bawi"]):
-            chosen_reactions = ["😢", "💔", "🙏"]
+            chosen_reactions = ["🔥", "🔥", "🔥"]
         else:
             num_of_reactions = random.randint(3, 5)
             chosen_reactions = random.sample(ALL_EMOJIS, num_of_reactions)
