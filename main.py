@@ -14,24 +14,33 @@ def home():
 def webhook():
     data = request.get_json()
 
-    print(data)
+    print("UPDATE:", data)
 
     if "channel_post" in data:
         post = data["channel_post"]
 
-        requests.post(
+        payload = {
+            "chat_id": post["chat"]["id"],
+            "message_id": post["message_id"],
+            "reaction": [
+                {
+                    "type": "emoji",
+                    "emoji": "❤️"
+                },
+                {
+                    "type": "emoji",
+                    "emoji": "🔥"
+                }
+            ]
+        }
+
+        r = requests.post(
             f"https://api.telegram.org/bot{BOT_TOKEN}/setMessageReaction",
-            json={
-                "chat_id": post["chat"]["id"],
-                "message_id": post["message_id"],
-                "reaction": [
-                    {
-                        "type": "emoji",
-                        "emoji": "❤️"
-                    }
-                ]
-            }
+            json=payload
         )
+
+        print("STATUS:", r.status_code)
+        print("RESPONSE:", r.text)
 
     return "ok"
 
