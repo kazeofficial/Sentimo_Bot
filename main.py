@@ -25,7 +25,7 @@ logging.basicConfig(
 )
 
 # Kukunin nito ang token mula sa Render Settings mamaya para tago at safe
-BOT_TOKEN = os.getenv("8767828114:AAG_c4L2YTq5sOighTwuLcSMxv3w0UDjgXM")
+BOT_TOKEN = os.getenv("BOT_TOKEN")
 
 ALL_EMOJIS = ["👍", "🔥", "❤️", "🎉", "🤩", "🚀", "👏", "🙌", "🥰", "😎", "⚡", "💯"]
 
