@@ -4,9 +4,8 @@ import logging
 import os
 from threading import Thread
 from flask import Flask
-from telegram import Update
+from telegram import Update, Bot
 from telegram.ext import Application, MessageHandler, filters, ContextTypes
-from telegram.ext._updater import Updater
 
 # ===== WEBKEEP ALIVE =====
 app_web = Flask(__name__)
@@ -66,24 +65,26 @@ async def start_bot():
         print("ERROR: Walang BOT_TOKEN sa Environment Variables!")
         return
 
-    # DIREKTANG KLASI: Laktawan ang Application.builder() para iwas Python 3.14 bug
-    updater = Updater(bot=None, token=BOT_TOKEN)
-    application = Application(updater=updater)
+    # Tamang paraan ng manu-manong pag-setup sa v20+ nang hindi gumagamit ng builder()
+    bot = Bot(token=BOT_TOKEN)
+    application = Application(bot=bot)
     
     application.add_handler(MessageHandler(filters.UpdateType.CHANNEL_POSTS, auto_react))
     
-    # Manu-manong patakbuhin ang loops
+    # Manu-manong pagsisimula ng asynchronous loop ng application
     await application.initialize()
-    await application.updater.start_polling()
     await application.start()
+    await application.updater.start_polling(allowed_updates=Update.ALL_TYPES)
     
     print("Sentimo_Bot is ONLINE via Render (Bypass Mode)...")
     while True:
         await asyncio.sleep(3600)
 
 def main():
+    # Patakbuhin ang Flask web server
     keep_alive()
     
+    # Patakbuhin ang bot gamit ang isang malinis, bagong loop
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     loop.run_until_complete(start_bot())
