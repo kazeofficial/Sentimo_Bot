@@ -10,20 +10,25 @@ BOT_TOKENS = [token.strip() for token in BOT_TOKENS_STR.split(",") if token.stri
 
 app = Flask(__name__)
 
+# KEYWORD MAPPING: Narito pa rin ang custom keyword shortcuts mo
 KEYWORD_MAPPING = {
     "sad": ["😢", "😭", "❤️", "😭", "😭"],       
     "solid": ["🎉", "❤️", "👏", "🔥", "❤️"],     
-    "lol": ["😁", "❤️", "🙉", "😁", "👍"],      
+    "lol": ["😁", "❤️", "🙈", "😁", "👍"],      
     "paldo": ["😱", "🔥", "🔥", "🤩", "🎉"],
     "paldoo": ["😱", "🔥", "🔥", "🤩", "🎉"]
 }
 
+# 🎲 BASE REACTIONS: Kinuha mismo sa channel settings mo (Tinanggal ang 😭 at 🥲)
+SAFE_EMOJIS = ["❤️", "🔥", "🥰", "👏", "😁", "🎉", "⚡", "🤩", "😍", "🫡", "👌", "😱", "🙈"]
+
+# DEFAULT CONFIGS: Random delays kada bot para natural tingnan ang pag-react
 DEFAULT_CONFIGS = [
-    {"emoji": "❤️", "min_delay": 0, "max_delay": 2},   
-    {"emoji": "❤️", "min_delay": 3, "max_delay": 6},   
-    {"emoji": "🔥", "min_delay": 7, "max_delay": 10},  
-    {"emoji": "🥰", "min_delay": 10, "max_delay": 14}, 
-    {"emoji": "🎉", "min_delay": 14, "max_delay": 18}  
+    {"min_delay": 0, "max_delay": 2},   
+    {"min_delay": 3, "max_delay": 6},   
+    {"min_delay": 7, "max_delay": 10},  
+    {"min_delay": 10, "max_delay": 14}, 
+    {"min_delay": 14, "max_delay": 18}  
 ]
 
 @app.route("/")
@@ -48,10 +53,6 @@ def delayed_reaction(token, chat_id, message_id, emoji, delay_seconds, is_big_ef
 
 @app.route("/webhook", methods=["POST"])
 def unified_webhook():
-    """
-    Isang webhook route na lang para sa lahat. I-set mo lang ang webhook 
-    ng limang bots mo sa iisang URL na ito (tingnan ang detalye sa ibaba).
-    """
     data = request.get_json(silent=True)
     if data and "channel_post" in data:
         post = data["channel_post"]
@@ -61,8 +62,10 @@ def unified_webhook():
         post_text = post.get("text", "") or post.get("caption", "")
         post_text = post_text.lower()
 
-        # Gumawa ng listahan ng mga gagawin para sa bawat bot
         bot_tasks = []
+
+        # Pipili ng magkakaibang random emojis para sa bawat bot galing sa base list ng channel mo
+        random_default_emojis = random.sample(SAFE_EMOJIS, min(len(BOT_TOKENS), len(SAFE_EMOJIS)))
 
         for bot_index, token in enumerate(BOT_TOKENS):
             chosen_emoji = None
@@ -77,9 +80,14 @@ def unified_webhook():
                         is_big_effect = True
                     break 
             
+            # KUNG WALANG KEYWORD: Random na mula sa safe list ng channel mo ang kukunin
             if not chosen_emoji:
-                config = DEFAULT_CONFIGS[bot_index] if bot_index < len(DEFAULT_CONFIGS) else {"emoji": "❤️"}
-                chosen_emoji = config.get("emoji", "❤️")
+                if bot_index < len(random_default_emojis):
+                    chosen_emoji = random_default_emojis[bot_index]
+                else:
+                    chosen_emoji = random.choice(SAFE_EMOJIS)
+                
+                is_big_effect = True # Naka-pasabog effect na rin para buhay!
 
             if bot_index < len(DEFAULT_CONFIGS):
                 cfg = DEFAULT_CONFIGS[bot_index]
@@ -87,13 +95,12 @@ def unified_webhook():
             else:
                 bot_delay = random.uniform(0, 5)
 
-            # I-save ang task ng bot na ito sa listahan
             bot_tasks.append((token, chat_id, message_id, chosen_emoji, bot_delay, is_big_effect))
 
-        # 🎲 ANG SIKRETO: Paghalu-haluin ang pagkakasunod-sunod ng mga bot!
+        # 🎲 I-shuffle para paiba-iba ang unahan
         random.shuffle(bot_tasks)
 
-        # Patakbuhin silang lahat nang sabay-sabay sa background
+        # Patakbuhin silang lahat sa background
         for task in bot_tasks:
             threading.Thread(target=delayed_reaction, args=task).start()
 
