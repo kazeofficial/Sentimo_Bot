@@ -10,24 +10,32 @@ BOT_TOKENS = [token.strip() for token in BOT_TOKENS_STR.split(",") if token.stri
 
 app = Flask(__name__)
 
-# CONFIGURATION: Iba't ibang emoji at delay para sa bawat Bot (Bot 1 to Bot 5)
-# Index 0 = Bot 1, Index 1 = Bot 2, atbp.
-BOT_CONFIGS = [
-    {"emoji": "❤️", "delay": 0},  # Bot 1: Agad-agad (0 seconds delay)
-    {"emoji": "👍", "delay": 2},  # Bot 2: Pagkatapos ng 2 seconds
-    {"entry": "🔥", "emoji": "🔥", "delay": 4},  # Bot 3: Pagkatapos ng 4 seconds
-    {"emoji": "🥰", "delay": 6},  # Bot 4: Pagkatapos ng 6 seconds
-    {"emoji": "🎉", "delay": 8}   # Bot 5: Pagkatapos ng 8 seconds
+# CONFIGURATION: Dito natin itatakda kung anong emoji ang gagamitin base sa Keyword
+# Kapag nakita ang salita sa kaliwa, ito ang ire-react ng Bot 1 hanggang Bot 5 (may kanya-kanya pa ring delay)
+KEYWORD_MAPPING = {
+    "sad": ["😢", "😭", "😥", "😭", "😭"],       # Kung may "sad", iyak/malungkot ang reactions
+    "solid": ["🎉", "🥰", "👏", "🔥", "❤️"],     # Kung may "happy", masaya/buhay ang reactions
+    "lol": ["😁", "😁", "🙉", "😁", "👍"],      # Kung may "joke", tawa ang reactions
+    "paldo": ["😱", "🔥", "🔥", "🤩", "🎉"]        # Kung may "wow", gulat/bilib ang reactions
+}
+
+# DEFAULT EMOJIS: Kung walang keyword na tumama sa post mo, ito ang gagamitin (tulad ng dati)
+DEFAULT_CONFIGS = [
+    {"emoji": "❤️", "delay": 0},
+    {"emoji": "👍", "delay": 5},
+    {"emoji": "🔥", "delay": 9},
+    {"emoji": "🥰", "delay": 9},
+    {"emoji": "🎉", "delay": 11}
 ]
 
 @app.route("/")
 def home():
-    return f"Bot Farm Running. Loaded Bots: {len(BOT_TOKENS)}", 200
+    return f"Smart Bot Farm Running. Loaded Bots: {len(BOT_TOKENS)}", 200
 
-# Ito ang function na nagpapatakbo ng delay bago mag-react ang bot
+# Function na nagpapatakbo ng delay bago mag-react ang bot
 def delayed_reaction(token, chat_id, message_id, emoji, delay_seconds):
     if delay_seconds > 0:
-        time.sleep(delay_seconds) # Hihintay muna dito bago ituloy
+        time.sleep(delay_seconds)
         
     url = f"https://api.telegram.org/bot{token}/setMessageReaction"
     payload = {
@@ -45,28 +53,47 @@ def delayed_reaction(token, chat_id, message_id, emoji, delay_seconds):
 def setup_routes():
     for index, token in enumerate(BOT_TOKENS):
         endpoint_name = f"webhook_{token[:10]}_{index}"
-        
-        # Kunin ang nakalaang emoji at delay para sa bot na ito (or gamitin ang default kung sumobra sa 5 bots)
-        config = BOT_CONFIGS[index] if index < len(BOT_CONFIGS) else {"emoji": "❤️", "delay": 0}
 
-        def create_webhook_handler(bot_token=token, bot_config=config):
+        def create_webhook_handler(bot_token=token, bot_index=index):
             def handler():
                 data = request.get_json(silent=True)
                 if data and "channel_post" in data:
                     post = data["channel_post"]
                     chat_id = post["chat"]["id"]
                     message_id = post["message_id"]
+                    
+                    # Kukunin ang text ng post (gagawing lowercase para hindi seloso sa Capital Letters)
+                    post_text = post.get("text", "").lower()
 
-                    # Tumatakbo ito sa background gamit ang Threading para magawa ang delay
+                    # Alamin kung anong emoji ang gagamitin para sa bot na ito
+                    chosen_emoji = None
+                    
+                    # I-check kung may tumamang keyword sa loob ng text ng post
+                    for keyword, emoji_list in KEYWORD_MAPPING.items():
+                        if keyword in post_text:
+                            # Pipiliin ang emoji na nakatoka sa index ng bot na ito
+                            if bot_index < len(emoji_list):
+                                chosen_emoji = emoji_list[bot_index]
+                            break
+                    
+                    # Kung walang keyword na nahanap sa text, gamitin ang default kanina
+                    if not chosen_emoji:
+                        config = DEFAULT_CONFIGS[bot_index] if bot_index < len(DEFAULT_CONFIGS) else {"emoji": "❤️", "delay": 0}
+                        chosen_emoji = config["emoji"]
+
+                    # Kunin ang delay para sa bot na ito mula sa default settings
+                    delay_config = DEFAULT_CONFIGS[bot_index] if bot_index < len(DEFAULT_CONFIGS) else {"emoji": "❤️", "delay": 0}
+                    bot_delay = delay_config["delay"]
+
+                    # Patakbuhin sa background gamit ang Threading
                     threading.Thread(
                         target=delayed_reaction,
-                        args=(bot_token, chat_id, message_id, bot_config["emoji"], bot_config["delay"])
+                        args=(bot_token, chat_id, message_id, chosen_emoji, bot_delay)
                     ).start()
 
                 return "ok", 200
             return handler
 
-        # I-register ang ruta (e.g., /token1, /token2)
         app.add_url_rule(
             f"/{token}",
             endpoint=endpoint_name,
@@ -77,6 +104,4 @@ def setup_routes():
 setup_routes()
 
 if __name__ == "__main__":
-    if not BOT_TOKENS:
-        print("WARNING: Walang bot tokens na nakalagay sa BOT_TOKENS environment variable!")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
