@@ -1,6 +1,6 @@
 import os
 import time
-import random  # Para sa random delays at shuffling
+import random  # Para sa random delays, shuffling, at choice
 import threading
 import requests
 from flask import Flask, request
@@ -10,25 +10,35 @@ BOT_TOKENS = [token.strip() for token in BOT_TOKENS_STR.split(",") if token.stri
 
 app = Flask(__name__)
 
-# KEYWORD MAPPING: Narito pa rin ang custom keyword shortcuts mo
+# 📌 KEYWORD MAPPING: Binago at nilagyan ng DUPLICATES gamit lang ang 9 na saktong emojis mo!
 KEYWORD_MAPPING = {
-    "sad": ["😢", "😭", "❤️", "😭", "😭"],       
-    "solid": ["🎉", "❤️", "👏", "🔥", "❤️"],     
-    "lol": ["😁", "❤️", "🙈", "😁", "👍"],      
-    "paldo": ["😱", "🔥", "🔥", "🤩", "🎉"],
-    "paldoo": ["😱", "🔥", "🔥", "🤩", "🎉"]
+    "sad": ["❤️", "❤️", "❤️", "👍", "👍", "😢", "👏", "😢", "😥", "🙈", "🙈", "❤️", "😢", "👏", "🥰"],       
+    "solid": ["🔥", "🔥", "🔥", "👍", "👍", "👏", "👏", "🤩", "🤩", "😍", "😍", "❤️", "🔥", "👍", "🤩"],     
+    "lol": ["😁", "😁", "😁", "🙈", "🙈", "👍", "👍", "❤️", "❤️", "🤩", "🤩", "😍", "😁", "🙈", "👍"],      
+    "paldo": ["🔥", "🔥", "🔥", "🤩", "🤩", "😍", "😍", "❤️", "❤️", "👍", "👍", "🥰", "🔥", "🤩", "😍"],
+    "paldoo": ["🔥", "🔥", "🔥", "🤩", "🤩", "🔥", "❤️", "❤️", "🙈", "👍", "👍", "🥰", "🔥", "😁", "😍"]
 }
 
-# 🎲 BASE REACTIONS: Kinuha mismo sa channel settings mo (Tinanggal ang 😭 at 🥲)
-SAFE_EMOJIS = ["❤️", "🔥", "🥰", "👏", "😁", "🎉", "⚡", "🤩", "😍", "🫡", "👌", "😱", "🙈"]
+# 🎲 BASE REACTIONS: Mula sa Screenshot_20260627-115647.jpg (Walang sad emoji)
+SAFE_EMOJIS = ["❤️", "👍", "🔥", "🥰", "👏", "😁", "🙈", "😍", "🤩"]
 
-# DEFAULT CONFIGS: Random delays kada bot para natural tingnan ang pag-react
+# DEFAULT CONFIGS: Ang tamang gap para sa 15 bots mo
 DEFAULT_CONFIGS = [
-    {"min_delay": 0, "max_delay": 2},   
-    {"min_delay": 3, "max_delay": 6},   
-    {"min_delay": 7, "max_delay": 10},  
-    {"min_delay": 10, "max_delay": 14}, 
-    {"min_delay": 14, "max_delay": 18}  
+    {"min_delay": 0, "max_delay": 2},     # Bot 1
+    {"min_delay": 2, "max_delay": 5},     # Bot 2
+    {"min_delay": 5, "max_delay": 8},     # Bot 3
+    {"min_delay": 8, "max_delay": 11},    # Bot 4
+    {"min_delay": 11, "max_delay": 14},   # Bot 5
+    {"min_delay": 14, "max_delay": 17},   # Bot 6
+    {"min_delay": 17, "max_delay": 20},   # Bot 7
+    {"min_delay": 20, "max_delay": 23},   # Bot 8
+    {"min_delay": 23, "max_delay": 26},   # Bot 9
+    {"min_delay": 26, "max_delay": 29},   # Bot 10
+    {"min_delay": 29, "max_delay": 32},   # Bot 11
+    {"min_delay": 32, "max_delay": 35},   # Bot 12
+    {"min_delay": 35, "max_delay": 38},   # Bot 13
+    {"min_delay": 38, "max_delay": 40},   # Bot 14
+    {"min_delay": 40, "max_delay": 42}    # Bot 15
 ]
 
 @app.route("/")
@@ -64,9 +74,6 @@ def unified_webhook():
 
         bot_tasks = []
 
-        # Pipili ng magkakaibang random emojis para sa bawat bot galing sa base list ng channel mo
-        random_default_emojis = random.sample(SAFE_EMOJIS, min(len(BOT_TOKENS), len(SAFE_EMOJIS)))
-
         for bot_index, token in enumerate(BOT_TOKENS):
             chosen_emoji = None
             is_big_effect = False 
@@ -80,24 +87,21 @@ def unified_webhook():
                         is_big_effect = True
                     break 
             
-            # KUNG WALANG KEYWORD: Random na mula sa safe list ng channel mo ang kukunin
+            # KUNG WALANG KEYWORD: Random choice pa rin mula sa 9 safe emojis (May duplicates)
             if not chosen_emoji:
-                if bot_index < len(random_default_emojis):
-                    chosen_emoji = random_default_emojis[bot_index]
-                else:
-                    chosen_emoji = random.choice(SAFE_EMOJIS)
-                
-                is_big_effect = True # Naka-pasabog effect na rin para buhay!
+                chosen_emoji = random.choice(SAFE_EMOJIS)
+                is_big_effect = True 
 
+            # Kumuha ng delay base sa pinalawak nating config list
             if bot_index < len(DEFAULT_CONFIGS):
                 cfg = DEFAULT_CONFIGS[bot_index]
                 bot_delay = random.uniform(cfg["min_delay"], cfg["max_delay"])
             else:
-                bot_delay = random.uniform(0, 5)
+                bot_delay = random.uniform(40, 50)
 
             bot_tasks.append((token, chat_id, message_id, chosen_emoji, bot_delay, is_big_effect))
 
-        # 🎲 I-shuffle para paiba-iba ang unahan
+        # 🎲 I-shuffle ang pagkakasunod-sunod para mas sabog ang pasok!
         random.shuffle(bot_tasks)
 
         # Patakbuhin silang lahat sa background
