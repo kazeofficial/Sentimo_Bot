@@ -11,16 +11,21 @@ BOT_TOKENS = list(dict.fromkeys([token.strip() for token in BOT_TOKENS_STR.split
 
 # MASTER CONTROL BOT CONFIG
 MASTER_TOKEN = "8767828114:AAG_c4L2YTq5sOighTwuLcSMxv3w0UDjgXM"
-ADMIN_ID = 7201369115  # 🎯 Saktong Admin ID mo
+ADMIN_ID = 7201369115  
 
 # PRIVATE CHANNELS WHITELIST
-ALLOWED_CHANNELS = [-1004483652219, -1002980077999]  # 🎯 Saktong Channels mo
+ALLOWED_CHANNELS = [-1004483652219, -1002980077999]  
 
 app = Flask(__name__)
 
 # GLOBAL STATES
 FARM_ACTIVE = True
 SPREAD_TIME_MINUTES = 0  
+
+# 🧠 ANTI-RE-REACT MEMORY LOCK
+# Dito itatabi ang message IDs na nareactan na para hindi na maulit
+PROCESSED_MESSAGES = set()
+memory_lock = threading.Lock()
 
 KEYWORD_MAPPING = {
     "sad": ["❤️", "❤️", "❤️", "👍", "👍", "👏", "👏", "🥰", "🥰", "🙈", "🙈", "❤️", "👍", "👏", "🥰"],       
@@ -155,7 +160,7 @@ def unified_webhook():
         requests.post(url, json=payload, timeout=5)
         requests.post(f"https://api.telegram.org/bot{MASTER_TOKEN}/answerCallbackQuery", json={"callback_query_id": query_id, "text": "Spread setting updated!"})
 
-    # 3. REACTION FARM
+    # 3. REACTION FARM (WITH ANTI-RE-REACT LOCK)
     elif "channel_post" in data:
         if not FARM_ACTIVE:
             return "ok", 200
@@ -166,6 +171,16 @@ def unified_webhook():
 
         if chat_id not in ALLOWED_CHANNELS:
             return "ok", 200
+
+        # 🛑 HANGGANG DITO LANG: I-check kung nareactan na itong message ID na ito
+        with memory_lock:
+            if message_id in PROCESSED_MESSAGES:
+                return "ok", 200 # Balewala na ang duplicate request, tapos na to!
+            PROCESSED_MESSAGES.add(message_id)
+            
+            # Para hindi mapuno ang RAM, linisin ang lumang memory kapag umabot ng 200 logs
+            if len(PROCESSED_MESSAGES) > 200:
+                PROCESSED_MESSAGES.pop()
         
         post_text = post.get("text", "") or post.get("caption", "")
         post_text = post_text.lower()
@@ -192,7 +207,6 @@ def unified_webhook():
                 chosen_emoji = random.choice(SAFE_EMOJIS)
                 is_big_effect = True 
 
-            # RANDOM SPREAD MODE
             if SPREAD_TIME_MINUTES > 0:
                 bot_delay = random.uniform(0, total_seconds)
             else:
