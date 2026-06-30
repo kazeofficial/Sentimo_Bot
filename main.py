@@ -7,20 +7,20 @@ from flask import Flask, request
 
 # TOKENS CONFIG
 BOT_TOKENS_STR = os.getenv("BOT_TOKENS", "")
-BOT_TOKENS = [token.strip() for token in BOT_TOKENS_STR.split(",") if token.strip()]
+BOT_TOKENS = list(dict.fromkeys([token.strip() for token in BOT_TOKENS_STR.split(",") if token.strip()]))
 
 # MASTER CONTROL BOT CONFIG
 MASTER_TOKEN = "8767828114:AAG_c4L2YTq5sOighTwuLcSMxv3w0UDjgXM"
-ADMIN_ID = 7201369115  # ⚠️ PALITAN MO ITO NG IYONG TELEGRAM USER ID!
+ADMIN_ID = 7201369115  # 🎯 Saktong Admin ID mo
 
 # PRIVATE CHANNELS WHITELIST
-ALLOWED_CHANNELS = [-1004483652219, -1002980077999]  # ⚠️ PALITAN NG CHANNEL IDs MO!
+ALLOWED_CHANNELS = [-1004483652219, -1002980077999]  # 🎯 Saktong Channels mo
 
 app = Flask(__name__)
 
 # GLOBAL STATES
 FARM_ACTIVE = True
-SPREAD_TIME_MINUTES = 0  # 0 mins = Gagamit ng default fast random delay
+SPREAD_TIME_MINUTES = 0  
 
 KEYWORD_MAPPING = {
     "sad": ["❤️", "❤️", "❤️", "👍", "👍", "👏", "👏", "🥰", "🥰", "🙈", "🙈", "❤️", "👍", "👏", "🥰"],       
@@ -30,7 +30,6 @@ KEYWORD_MAPPING = {
     "paldoo": ["🔥", "🔥", "🔥", "🤩", "🤩", "😍", "😍", "❤️", "❤️", "👍", "👍", "🥰", "🔥", "🤩", "😍"]
 }
 
-# 9 Safe Emojis base sa Screenshot_20260627-115647.jpg mo
 SAFE_EMOJIS = ["❤️", "👍", "🔥", "🥰", "👏", "😁", "🙈", "😍", "🤩"]
 
 DEFAULT_CONFIGS = [
@@ -57,7 +56,6 @@ def send_master_message(chat_id, text, reply_markup=None):
 
 def get_control_panel_keyboard():
     status_text = "🟢 FARM ONLINE" if FARM_ACTIVE else "🔴 FARM OFFLINE"
-    
     d0 = "🔘 No Delay" if SPREAD_TIME_MINUTES == 0 else "⏱️ No Delay"
     d5 = "🔘 5 Mins Spread" if SPREAD_TIME_MINUTES == 5 else "⏱️ 5 Mins Spread"
     d10 = "🔘 10 Mins Spread" if SPREAD_TIME_MINUTES == 10 else "⏱️ 10 Mins Spread"
@@ -97,7 +95,7 @@ def unified_webhook():
     if not data:
         return "ok", 200
 
-    # 1. CONTROL PANEL INTERACTION (/start)
+    # 1. CONTROL PANEL
     if "message" in data:
         msg = data["message"]
         chat_id = msg["chat"]["id"]
@@ -113,11 +111,11 @@ def unified_webhook():
                 "--------------------------------------------\n"
                 f"Status: `{'ACTIVE' if FARM_ACTIVE else 'OFF'}`\n"
                 f"Mode: `Random Spread`\n"
-                f"Max Windows Time: `{SPREAD_TIME_MINUTES} minutes` (Lahat tatapos bago mag {SPREAD_TIME_MINUTES} mins)"
+                f"Max Windows Time: `{SPREAD_TIME_MINUTES} minutes`"
             )
             send_master_message(chat_id, panel_text, get_control_panel_keyboard())
 
-    # 2. INLINE BUTTON CLICKS
+    # 2. INLINE BUTTONS
     elif "callback_query" in data:
         query = data["callback_query"]
         user_id = query["from"]["id"]
@@ -157,7 +155,7 @@ def unified_webhook():
         requests.post(url, json=payload, timeout=5)
         requests.post(f"https://api.telegram.org/bot{MASTER_TOKEN}/answerCallbackQuery", json={"callback_query_id": query_id, "text": "Spread setting updated!"})
 
-    # 3. CHANNEL POST DETECTION (REACTION FARM)
+    # 3. REACTION FARM
     elif "channel_post" in data:
         if not FARM_ACTIVE:
             return "ok", 200
@@ -175,7 +173,10 @@ def unified_webhook():
         bot_tasks = []
         total_seconds = SPREAD_TIME_MINUTES * 60
 
-        for bot_index, token in enumerate(BOT_TOKENS):
+        shuffled_tokens = list(BOT_TOKENS)
+        random.shuffle(shuffled_tokens)
+
+        for bot_index, token in enumerate(shuffled_tokens):
             chosen_emoji = None
             is_big_effect = False 
 
@@ -191,14 +192,10 @@ def unified_webhook():
                 chosen_emoji = random.choice(SAFE_EMOJIS)
                 is_big_effect = True 
 
-            # 🎲 RANDOM SPREAD ALGORITHM
+            # RANDOM SPREAD MODE
             if SPREAD_TIME_MINUTES > 0:
-                # Bawat bot ay bibigyan ng pure random delay sa loob ng napiling oras.
-                # Halimbawa sa 5 mins (300s): Pwedeng si Bot 1 ay 12s, Bot 2 ay 14s (magkasabay sila sa 1st min!), Bot 3 ay 280s.
-                # Siguradong pasok silang lahat bago matapos ang 5 mins nang walang pattern!
                 bot_delay = random.uniform(0, total_seconds)
             else:
-                # Fast Mode kapag "No Delay"
                 if bot_index < len(DEFAULT_CONFIGS):
                     cfg = DEFAULT_CONFIGS[bot_index]
                     bot_delay = random.uniform(cfg["min_delay"], cfg["max_delay"])
@@ -206,9 +203,6 @@ def unified_webhook():
                     bot_delay = random.uniform(40, 50)
 
             bot_tasks.append((token, chat_id, message_id, chosen_emoji, bot_delay, is_big_effect))
-
-        # I-shuffle pa rin natin para lalong magulo ang execution thread
-        random.shuffle(bot_tasks)
 
         for task in bot_tasks:
             threading.Thread(target=delayed_reaction, args=task).start()
