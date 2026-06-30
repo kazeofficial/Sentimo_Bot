@@ -11,18 +11,16 @@ BOT_TOKENS = [token.strip() for token in BOT_TOKENS_STR.split(",") if token.stri
 
 # MASTER CONTROL BOT CONFIG
 MASTER_TOKEN = "8767828114:AAG_c4L2YTq5sOighTwuLcSMxv3w0UDjgXM"
-ADMIN_ID = 7201369115  # ⚠️ PALITAN MO ITO NG IYONG HALONG TELEGRAM USER ID!
+ADMIN_ID = 7201369115  # ⚠️ PALITAN MO ITO NG IYONG TELEGRAM USER ID!
 
 # PRIVATE CHANNELS WHITELIST
-# ⚠️ Ilagay mo rito ang mga ID ng channels mo kung saan LANG pwedeng gumana ang bots.
-# Tandaan: Ang channel ID sa Telegram ay laging nagsisimula sa -100 (Halimbawa: -100223456789)
-ALLOWED_CHANNELS = [-1002980077999, -1004483652219] 
+ALLOWED_CHANNELS = [-1001234567890, -1000987654321]  # ⚠️ PALITAN NG CHANNEL IDs MO!
 
 app = Flask(__name__)
 
-# GLOBAL STATES (Mga pwedeng baguhin sa Control Panel)
+# GLOBAL STATES
 FARM_ACTIVE = True
-EXTRA_DELAY_MINUTES = 0  # Dagdag na hihintayin bago magsimula ang farm
+SPREAD_TIME_MINUTES = 0  # 0 mins = Gagamit ng default fast random delay
 
 KEYWORD_MAPPING = {
     "sad": ["❤️", "❤️", "❤️", "👍", "👍", "👏", "👏", "🥰", "🥰", "🙈", "🙈", "❤️", "👍", "👏", "🥰"],       
@@ -32,6 +30,7 @@ KEYWORD_MAPPING = {
     "paldoo": ["🔥", "🔥", "🔥", "🤩", "🤩", "😍", "😍", "❤️", "❤️", "👍", "👍", "🥰", "🔥", "🤩", "😍"]
 }
 
+# 9 Safe Emojis base sa Screenshot_20260627-115647.jpg mo
 SAFE_EMOJIS = ["❤️", "👍", "🔥", "🥰", "👏", "😁", "🙈", "😍", "🤩"]
 
 DEFAULT_CONFIGS = [
@@ -47,7 +46,7 @@ DEFAULT_CONFIGS = [
 
 @app.route("/")
 def home():
-    return f"FARM: {'ACTIVE' if FARM_ACTIVE else 'OFF'} | Extra Delay: {EXTRA_DELAY_MINUTES}m | Bots: {len(BOT_TOKENS)}", 200
+    return f"FARM: {'ACTIVE' if FARM_ACTIVE else 'OFF'} | Spread: {SPREAD_TIME_MINUTES}m | Bots: {len(BOT_TOKENS)}", 200
 
 def send_master_message(chat_id, text, reply_markup=None):
     url = f"https://api.telegram.org/bot{MASTER_TOKEN}/sendMessage"
@@ -58,25 +57,26 @@ def send_master_message(chat_id, text, reply_markup=None):
 
 def get_control_panel_keyboard():
     status_text = "🟢 FARM ONLINE" if FARM_ACTIVE else "🔴 FARM OFFLINE"
-    delay_text = f"⏳ Extra Delay: {EXTRA_DELAY_MINUTES} mins"
+    
+    d0 = "🔘 No Delay" if SPREAD_TIME_MINUTES == 0 else "⏱️ No Delay"
+    d5 = "🔘 5 Mins Spread" if SPREAD_TIME_MINUTES == 5 else "⏱️ 5 Mins Spread"
+    d10 = "🔘 10 Mins Spread" if SPREAD_TIME_MINUTES == 10 else "⏱️ 10 Mins Spread"
     
     return {
         "inline_keyboard": [
             [{"text": status_text, "callback_data": "toggle_status"}],
             [
-                {"text": "⏱️ No Delay", "callback_data": "delay_0"},
-                {"text": "⏱️ 5 Mins", "callback_data": "delay_5"},
-                {"text": "⏱️ 10 Mins", "callback_data": "delay_10"}
+                {"text": d0, "callback_data": "set_spread_0"},
+                {"text": d5, "callback_data": "set_spread_5"},
+                {"text": d10, "callback_data": "set_spread_10"}
             ],
             [{"text": "🔄 Refresh Status", "callback_data": "refresh"}]
         ]
     }
 
 def delayed_reaction(token, chat_id, message_id, emoji, delay_seconds, is_big_effect):
-    # Idagdag ang Extra Delay mula sa Control Panel (Minutes to Seconds)
-    total_delay = delay_seconds + (EXTRA_DELAY_MINUTES * 60)
-    if total_delay > 0:
-        time.sleep(total_delay)
+    if delay_seconds > 0:
+        time.sleep(delay_seconds)
         
     url = f"https://api.telegram.org/bot{token}/setMessageReaction"
     payload = {
@@ -92,19 +92,18 @@ def delayed_reaction(token, chat_id, message_id, emoji, delay_seconds, is_big_ef
 
 @app.route("/webhook", methods=["POST"])
 def unified_webhook():
-    global FARM_ACTIVE, EXTRA_DELAY_MINUTES
+    global FARM_ACTIVE, SPREAD_TIME_MINUTES
     data = request.get_json(silent=True)
     if not data:
         return "ok", 200
 
-    # 1. KONTROL PARA SA PRIVATE MASTER CONTROL PANEL (Direct Message sa Master Bot)
+    # 1. CONTROL PANEL INTERACTION (/start)
     if "message" in data:
         msg = data["message"]
         chat_id = msg["chat"]["id"]
         user_id = msg["from"]["id"]
         text = msg.get("text", "")
 
-        # SECURITY CHECK: Kung hindi ikaw ang nag-chat, iblock ang bot.
         if user_id != ADMIN_ID:
             return "ok", 200
 
@@ -113,11 +112,12 @@ def unified_webhook():
                 "🤖 *KAZEHAYAMODZ BOT REACTION CONTROL PANEL*\n"
                 "--------------------------------------------\n"
                 f"Status: `{'ACTIVE' if FARM_ACTIVE else 'OFF'}`\n"
-                f"Extra Wait Time: `{EXTRA_DELAY_MINUTES} minutes`"
+                f"Mode: `Random Spread`\n"
+                f"Max Windows Time: `{SPREAD_TIME_MINUTES} minutes` (Lahat tatapos bago mag {SPREAD_TIME_MINUTES} mins)"
             )
             send_master_message(chat_id, panel_text, get_control_panel_keyboard())
 
-    # 2. HANDLING NG INLINE BUTTON CLICKS
+    # 2. INLINE BUTTON CLICKS
     elif "callback_query" in data:
         query = data["callback_query"]
         user_id = query["from"]["id"]
@@ -125,30 +125,27 @@ def unified_webhook():
         query_id = query["id"]
         callback_data = query["data"]
 
-        # SECURITY CHECK: Ikaw lang ang pwedeng pumindot ng buttons
         if user_id != ADMIN_ID:
             requests.post(f"https://api.telegram.org/bot{MASTER_TOKEN}/answerCallbackQuery", json={"callback_query_id": query_id, "text": "Bawal ka rito!", "show_alert": True})
             return "ok", 200
 
-        # Actions base sa pinindot mo
         if callback_data == "toggle_status":
             FARM_ACTIVE = not FARM_ACTIVE
-        elif callback_data == "delay_0":
-            EXTRA_DELAY_MINUTES = 0
-        elif callback_data == "delay_5":
-            EXTRA_DELAY_MINUTES = 5
-        elif callback_data == "delay_10":
-            EXTRA_DELAY_MINUTES = 10
+        elif callback_data == "set_spread_0":
+            SPREAD_TIME_MINUTES = 0
+        elif callback_data == "set_spread_5":
+            SPREAD_TIME_MINUTES = 5
+        elif callback_data == "set_spread_10":
+            SPREAD_TIME_MINUTES = 10
 
-        # I-update ang panel matapos pindutin
         updated_text = (
             "🤖 *KAZEHAYAMODZ BOT REACTION CONTROL PANEL*\n"
             "--------------------------------------------\n"
             f"Status: `{'ACTIVE' if FARM_ACTIVE else 'OFF'}`\n"
-            f"Extra Wait Time: `{EXTRA_DELAY_MINUTES} minutes`"
+            f"Mode: `Random Spread`\n"
+            f"Max Windows Time: `{SPREAD_TIME_MINUTES} minutes`"
         )
         
-        # Edit current message
         url = f"https://api.telegram.org/bot{MASTER_TOKEN}/editMessageText"
         payload = {
             "chat_id": chat_id,
@@ -158,13 +155,10 @@ def unified_webhook():
             "reply_markup": get_control_panel_keyboard()
         }
         requests.post(url, json=payload, timeout=5)
-        
-        # Acknowledge the click
-        requests.post(f"https://api.telegram.org/bot{MASTER_TOKEN}/answerCallbackQuery", json={"callback_query_id": query_id, "text": "Settings updated!"})
+        requests.post(f"https://api.telegram.org/bot{MASTER_TOKEN}/answerCallbackQuery", json={"callback_query_id": query_id, "text": "Spread setting updated!"})
 
-    # 3. KONTROL PARA SA MGA CHANNELS (REACTION FARM)
+    # 3. CHANNEL POST DETECTION (REACTION FARM)
     elif "channel_post" in data:
-        # SECURITY CHECK: Kung NAKA-OFF ang farm sa panel, huwag mag-react.
         if not FARM_ACTIVE:
             return "ok", 200
 
@@ -172,16 +166,14 @@ def unified_webhook():
         chat_id = post["chat"]["id"]
         message_id = post["message_id"]
 
-        # SECURITY CHECK: PRIVATE BOT PROTECTION
-        # Kung ang nag-post na channel ay HINDI kasama sa whitelisted channels mo, automatic BLOCK!
         if chat_id not in ALLOWED_CHANNELS:
-            print(f"Blocked un-authorized channel reaction request from: {chat_id}")
             return "ok", 200
         
         post_text = post.get("text", "") or post.get("caption", "")
         post_text = post_text.lower()
 
         bot_tasks = []
+        total_seconds = SPREAD_TIME_MINUTES * 60
 
         for bot_index, token in enumerate(BOT_TOKENS):
             chosen_emoji = None
@@ -199,14 +191,23 @@ def unified_webhook():
                 chosen_emoji = random.choice(SAFE_EMOJIS)
                 is_big_effect = True 
 
-            if bot_index < len(DEFAULT_CONFIGS):
-                cfg = DEFAULT_CONFIGS[bot_index]
-                bot_delay = random.uniform(cfg["min_delay"], cfg["max_delay"])
+            # 🎲 RANDOM SPREAD ALGORITHM
+            if SPREAD_TIME_MINUTES > 0:
+                # Bawat bot ay bibigyan ng pure random delay sa loob ng napiling oras.
+                # Halimbawa sa 5 mins (300s): Pwedeng si Bot 1 ay 12s, Bot 2 ay 14s (magkasabay sila sa 1st min!), Bot 3 ay 280s.
+                # Siguradong pasok silang lahat bago matapos ang 5 mins nang walang pattern!
+                bot_delay = random.uniform(0, total_seconds)
             else:
-                bot_delay = random.uniform(40, 50)
+                # Fast Mode kapag "No Delay"
+                if bot_index < len(DEFAULT_CONFIGS):
+                    cfg = DEFAULT_CONFIGS[bot_index]
+                    bot_delay = random.uniform(cfg["min_delay"], cfg["max_delay"])
+                else:
+                    bot_delay = random.uniform(40, 50)
 
             bot_tasks.append((token, chat_id, message_id, chosen_emoji, bot_delay, is_big_effect))
 
+        # I-shuffle pa rin natin para lalong magulo ang execution thread
         random.shuffle(bot_tasks)
 
         for task in bot_tasks:
