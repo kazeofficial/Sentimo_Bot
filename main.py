@@ -35,8 +35,8 @@ PROCESSED_MESSAGES = set()
 memory_lock = threading.Lock()
 
 KEYWORD_MAPPING = {
-    "sad": ["❤️", "❤️", "❤️", "👍", "👍", "👏", "👏", "🥰", "🥰", "🙈", "🙈", "❤️", "👍", "👏", "🥰"],       
-    "solid": ["🔥", "🔥", "🔥", "👍", "👍", "👏", "👏", "🤩", "🤩", "😍", "😍", "❤️", "🔥", "👍", "🤩"],     
+    "sad": ["❤️", "❤️", "❤️", "👍", "👍", "👏", "👏", "🥰", "🥰", "🙈", "🙈", "❤️", "👍", "👏", "🥰"],        
+    "solid": ["🔥", "🔥", "🔥", "👍", "👍", "👏", "👏", "🤩", "🤩", "😍", "😍", "❤️", "🔥", "👍", "🤩"],      
     "lol": ["😁", "😁", "😁", "🙈", "🙈", "👍", "👍", "❤️", "❤️", "🤩", "🤩", "😍", "😁", "🙈", "👍"],      
     "paldo": ["🔥", "🔥", "🔥", "🤩", "🤩", "😍", "😍", "❤️", "❤️", "👍", "👍", "🥰", "🔥", "🤩", "😍"],
     "paldoo": ["🔥", "🔥", "🔥", "🤩", "🤩", "😍", "😍", "❤️", "❤️", "👍", "👍", "🥰", "🔥", "🤩", "😍"]
@@ -108,28 +108,30 @@ def unified_webhook():
         return "ok", 200
 
     # 1. CONTROL PANEL
-if "message" in data:
-    msg = data["message"]
-    chat_id = msg["chat"]["id"]
-    user_id = msg["from"]["id"]
-    text = msg.get("text", "")
+    if "message" in data:
+        msg = data["message"]
+        chat_id = msg["chat"]["id"]
+        user_id = msg["from"]["id"]
+        text = msg.get("text", "")
 
-    if user_id not in ADMIN_IDS:
+        if user_id not in ADMIN_IDS:
+            return "ok", 200
+
+        if text == "/start":
+            panel_text = (
+                "🤖 *KAZEHAYAMODZ BOT REACTION CONTROL PANEL*\n"
+                "--------------------------------------------\n"
+                f"Status: `{'ACTIVE' if FARM_ACTIVE else 'OFF'}`\n"
+                f"Mode: `Random Spread`\n"
+                f"Max Windows Time: `{SPREAD_TIME_MINUTES} minutes`"
+            )
+            send_master_message(
+                chat_id,
+                panel_text,
+                get_control_panel_keyboard()
+            )
+            
         return "ok", 200
-
-    if text == "/start":
-        panel_text = (
-            "🤖 *KAZEHAYAMODZ BOT REACTION CONTROL PANEL*\n"
-            "--------------------------------------------\n"
-            f"Status: `{'ACTIVE' if FARM_ACTIVE else 'OFF'}`\n"
-            f"Mode: `Random Spread`\n"
-            f"Max Windows Time: `{SPREAD_TIME_MINUTES} minutes`"
-        )
-        send_master_message(
-            chat_id,
-            panel_text,
-            get_control_panel_keyboard()
-        )
         
     # 2. INLINE BUTTONS
     elif "callback_query" in data:
@@ -170,6 +172,7 @@ if "message" in data:
         }
         requests.post(url, json=payload, timeout=5)
         requests.post(f"https://api.telegram.org/bot{MASTER_TOKEN}/answerCallbackQuery", json={"callback_query_id": query_id, "text": "Spread setting updated!"})
+        return "ok", 200
 
     # 3. REACTION FARM (WITH ANTI-RE-REACT LOCK)
     elif "channel_post" in data:
