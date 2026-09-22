@@ -108,25 +108,29 @@ def unified_webhook():
         return "ok", 200
 
     # 1. CONTROL PANEL
-    if "message" in data:
-        msg = data["message"]
-        chat_id = msg["chat"]["id"]
-        user_id = msg["from"]["id"]
-        text = msg.get("text", "")
+if "message" in data:
+    msg = data["message"]
+    chat_id = msg["chat"]["id"]
+    user_id = msg["from"]["id"]
+    text = msg.get("text", "")
 
-        if user_id != ADMIN_IDS:
-            return "ok", 200
+    if user_id not in ADMIN_IDS:
+        return "ok", 200
 
-        if text == "/start":
-            panel_text = (
-                "🤖 *KAZEHAYAMODZ BOT REACTION CONTROL PANEL*\n"
-                "--------------------------------------------\n"
-                f"Status: `{'ACTIVE' if FARM_ACTIVE else 'OFF'}`\n"
-                f"Mode: `Random Spread`\n"
-                f"Max Windows Time: `{SPREAD_TIME_MINUTES} minutes`"
-            )
-            send_master_message(chat_id, panel_text, get_control_panel_keyboard())
-
+    if text == "/start":
+        panel_text = (
+            "🤖 *KAZEHAYAMODZ BOT REACTION CONTROL PANEL*\n"
+            "--------------------------------------------\n"
+            f"Status: `{'ACTIVE' if FARM_ACTIVE else 'OFF'}`\n"
+            f"Mode: `Random Spread`\n"
+            f"Max Windows Time: `{SPREAD_TIME_MINUTES} minutes`"
+        )
+        send_master_message(
+            chat_id,
+            panel_text,
+            get_control_panel_keyboard()
+        )
+        
     # 2. INLINE BUTTONS
     elif "callback_query" in data:
         query = data["callback_query"]
