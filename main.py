@@ -11,10 +11,17 @@ BOT_TOKENS = list(dict.fromkeys([token.strip() for token in BOT_TOKENS_STR.split
 
 # MASTER CONTROL BOT CONFIG
 MASTER_TOKEN = "8767828114:AAG_c4L2YTq5sOighTwuLcSMxv3w0UDjgXM"
-ADMIN_ID = 7201369115  
+ADMIN_IDS = {
+    7201369115,
+    8073609514
+}
 
 # PRIVATE CHANNELS WHITELIST
-ALLOWED_CHANNELS = [-1004483652219, -1002980077999]  
+ALLOWED_CHANNELS = [
+    -1004483652219,
+    -1002980077999,
+    -1003545438457
+]
 
 app = Flask(__name__)
 
@@ -107,7 +114,7 @@ def unified_webhook():
         user_id = msg["from"]["id"]
         text = msg.get("text", "")
 
-        if user_id != ADMIN_ID:
+        if user_id != ADMIN_IDS:
             return "ok", 200
 
         if text == "/start":
@@ -128,7 +135,7 @@ def unified_webhook():
         query_id = query["id"]
         callback_data = query["data"]
 
-        if user_id != ADMIN_ID:
+        if user_id not in ADMIN_IDS:
             requests.post(f"https://api.telegram.org/bot{MASTER_TOKEN}/answerCallbackQuery", json={"callback_query_id": query_id, "text": "Bawal ka rito!", "show_alert": True})
             return "ok", 200
 
